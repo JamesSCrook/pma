@@ -1,0 +1,236 @@
+#!/bin/sh
+
+################################################################################
+################################################################################
+#   pmc: Performance Monitor Collector
+#   Collect Linux/UNIX performance data into a log file for later analysis
+#   with pma (Performance Monitor Analyzer)
+#   Copyright (C) 2016 James S. Crook
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+################################################################################
+################################################################################
+#
+# This script is designed to collect performance information on Linux/UNIX
+# systems.  It is expected that the output will then be fed to pma in order to
+# perform graphical analysis.
+#
+################################################################################
+################################################################################
+
+PROG=$(basename $0)
+VERSION=0.0.1
+export LC_TIME=POSIX
+
+FIRSTHOUR=0; LASTHOUR=23; COUNT=12; INTERVAL=10; EXCLUDEDAYS="None";
+VMFLAG=1; IOFLAG=1; NETFLAG=1
+DISKS=""
+EXCLUDEDAYS=""
+VMTMPFILE=/tmp/vmstat.$$; IOTMPFILE=/tmp/iostat.$$; NETTMPFILE=/tmp/sarnet.$$
+OUTFILEPATTERN=""
+PREVOUTFILE=""
+
+################################################################################
+CLEANUPCMD="rm -f $VMTMPFILE $IOTMPFILE $NETTMPFILE"
+trap "echo 'interrupt/quit: cleaning up'; $CLEANUPCMD; exit 1" 2 3
+
+################################################################################
+function usagemsg {
+  echo "usage: $PROG [OPTION ...] -o outputfilepattern                   [defaults:]
+  WHERE:
+    -o outfilepattern   output log file pattern/name            none (required!)
+  OPTIONs are:
+    -f first_hour       first hour to collect data              $FIRSTHOUR
+    -l last_hour        last hour to collect data               $LASTHOUR
+    -c count            count    parameter                      $COUNT
+    -i interval         interval parameter                      $INTERVAL
+    -d disk/disk_list   disk or 'disk1 ... diskN' to INclude    none (all disks)
+    -x day/day_list     week day or 'day1 ... dayN' to EXclude  none
+    -V                  Do NOT collect vmstat output            collect data
+    -I                  Do NOT collect iostat output            collect data
+    -N                  Do NOT collect sar -n output            collect data
+    -v                  display the version of $PROG
+    -h                  display this usage message
+
+  e.g.:
+    $PROG -o logfile
+    $PROG -f 9 -l 17 -o logfile
+    $PROG -f 9 -l 17 -d sda -d sdb -x Sat -x Sun -o logfile
+    $PROG -f 7 -l 19 -d 'dm-3 dm-6' -o logfile
+
+    For a single date-stamped log file (no quotes):
+      $PROG [OPTION ...] -o \$(hostname)_\$(date +%Y%m%d.pmc)
+    For a new date-stamped log file each day (single quotes):
+      $PROG [OPTION ...] -o '\$(hostname)_\$(date +%Y%m%d.pmc)'
+"
+}
+
+################################################################################
+function config_Linux {
+    VMSEDPROG='
+	/^proc/d
+	/^ r  b/d
+    '
+    IOSEDPROG='
+	/^Linux/d
+	/^Device:/d
+	/^avg-cpu/d
+	/^ /d
+	/^$/d
+    '
+    NETSEDPROG='
+	/^Linux/d
+	/^Average:/d
+	/IFACE/d
+	/^$/d
+	s/^..:..:..     //
+    '
+    VMMETRICS="r b swpd free buff cache si so bi bo in cs cpu_us cpu_sy cpu_id cpu_wa st"
+    IOMETRICS="tps kBrdps kBwtps kBrd kBwt"
+    NETMETRICS="rxpkps txpkps rxkBps txkBps rxcmps txcmps rxmctps" # Fedora pcutil
+    VMINFO="VM  V 2 $VMMETRICS"
+    IOINFO="IO  A 2 $IOMETRICS"
+    NETINFO="NET A 1 $NETMETRICS"
+    VMCMD="vmstat $INTERVAL $COUNT"
+    IOCMD="iostat $INTERVAL $COUNT $DISKS"
+    NETCMD="sar -n DEV $INTERVAL $COUNT"
+}
+
+################################################################################
+function config_AIX {
+    NETFLAG=0			# AIX (7.1): sar has no '-n' option. Doh!
+    VMSEDPROG='
+	/^ r  b/d
+	/^System/d
+	/^kthr/d
+	/^-----/d
+	/^$/d
+    '
+    IOSEDPROG='
+	/^System/d
+	/^tty:/d
+	/^Disks:/d
+	/^  */d
+	/^$/d
+    '
+    VMMETRICS="r b avm fre re pi po fr sr cy in sy cs cpu_us cpu_sy cpu_id cpu_wa pc ec"
+    IOMETRICS="tm_act kBps tps kBrd kB_wt"
+    VMINFO="VM V 2 $VMMETRICS"
+    IOINFO="IO A 2 $IOMETRICS"
+    VMCMD="vmstat $INTERVAL $COUNT"
+    IOCMD="iostat $DISKS $INTERVAL $COUNT"
+}
+
+################################################################################
+OPTIONS="o:f:l:c:d:i:x:VINvh"
+while getopts "$OPTIONS" OPTION; do
+    case $OPTION in
+	o) OUTFILEPATTERN=$OPTARG;;
+	f) FIRSTHOUR=$OPTARG;;
+	l) LASTHOUR=$OPTARG;;
+	c) COUNT=$OPTARG;;
+	i) INTERVAL=$OPTARG;;
+	d) DISKS="$DISKS $OPTARG";;
+	x) EXCLUDEDAYS="$EXCLUDEDAYS $OPTARG";;
+	V) VMFLAG=0;;
+	I) IOFLAG=0;;
+	N) NETFLAG=0;;
+	h) usagemsg; exit 0;;
+	v) echo "Version: $VERSION"; exit 0;;
+	?) usagemsg; exit 1;;
+    esac
+done
+shift $(($OPTIND - 1))
+
+if [ $FIRSTHOUR -lt 0 -o $FIRSTHOUR -gt 23 -o $LASTHOUR -lt 0 -o \
+			    $LASTHOUR -gt 23 -o $FIRSTHOUR -gt $LASTHOUR ]; then
+    usagemsg
+    exit 1
+fi
+
+################################################################################
+OS=$(uname)
+case $OS in
+    Linux)	config_Linux;;
+    AIX)	config_AIX;;
+    *) echo "$OS is not currently supported"; exit 0;;
+esac
+
+if [ "$OUTFILEPATTERN" == "" ]; then
+    usagemsg
+    exit 1
+fi
+
+################################################################################
+while true; do
+    DAYOFWEEK=$(date +%a)
+    HOUR=$(  date +%H | sed 's/^0//')
+    MINUTE=$(date +%M | sed 's/^0//')
+
+    if [ $(echo "$EXCLUDEDAYS" | grep $DAYOFWEEK | wc -w) -eq 0 ]; then
+	if [ $HOUR -ge $FIRSTHOUR -a $HOUR -le $LASTHOUR ]; then
+
+	    OUTFILE=$(eval echo $OUTFILEPATTERN)
+	    if [ "$PREVOUTFILE" != "$OUTFILE" ]; then
+		echo "COUNT,INTERVAL:" >> $OUTFILE
+		echo "$COUNT $INTERVAL # h=$(hostname) f=$FIRSTHOUR l=$LASTHOUR x='$EXCLUDEDAYS' d='$DISKS'" >> $OUTFILE
+		echo >> $OUTFILE
+
+		echo "METADATA:" >> $OUTFILE
+		if [ $VMFLAG  -ne 0 ]; then echo "$VMINFO"  >> $OUTFILE; fi
+		if [ $IOFLAG  -ne 0 ]; then echo "$IOINFO"  >> $OUTFILE; fi
+		if [ $NETFLAG -ne 0 ]; then echo "$NETINFO" >> $OUTFILE; fi
+		echo >> $OUTFILE
+	    fi
+
+	    DATESTR=$(date "+%s # %c %z")
+	    if [ $VMFLAG  -ne 0 ]; then
+		$VMCMD  | sed "$VMSEDPROG" > $VMTMPFILE &
+	    fi
+	    if [ $IOFLAG  -ne 0 ]; then
+		$IOCMD  | sed "$IOSEDPROG" > $IOTMPFILE &
+	    fi
+	    if [ $NETFLAG -ne 0 ]; then
+		$NETCMD | sed "$NETSEDPROG" > $NETTMPFILE &
+	    fi
+
+	    wait	# The stop interrupt will probably happen here.
+
+	    echo "DATE:"	>> $OUTFILE
+	    echo "$DATESTR"	>> $OUTFILE
+	    echo >> $OUTFILE
+	    if [ $VMFLAG -ne 0 ]; then
+		(echo "VM:"; cat $VMTMPFILE; echo) >> $OUTFILE
+	    fi
+	    if [ $IOFLAG -ne 0 ]; then
+		(echo "IO:"; cat $IOTMPFILE; echo) >> $OUTFILE
+	    fi
+	    if [ $NETFLAG -ne 0 ]; then
+		(echo "NET:"; cat $NETTMPFILE; echo) >> $OUTFILE
+	    fi
+	else			# sleep until $FIRSTHOUR
+	    SLEEPSECONDS=$((((24+FIRSTHOUR-HOUR)%24-1)*3600+(60-MINUTE)*60))
+	    echo "$PROG: $(date) sleeping for $SLEEPSECONDS s"
+	    sleep $SLEEPSECONDS
+	fi
+    else	# sleep until just after midnight 'tomorrow'
+	SLEEPSECONDS=$(((23-HOUR)*3600 + (60-MINUTE)* 60))
+	echo "$PROG: $(date) sleeping for $SLEEPSECONDS s"
+        sleep $SLEEPSECONDS
+    fi
+    PREVOUTFILE=$OUTFILE
+done
+$CLEANUPCMD	# Should never reach here!
+exit 0

@@ -1,0 +1,11 @@
+James S. Crook
+Mon May 16 10:05:32 AEST 2016
+
+For Linux and Cygwin
+    gcc -o pma pma.c
+
+    This should also clean compile on Linux:
+    gcc -pedantic -Wextra -Wshadow -Wpointer-arith -Wcast-qual -o pma pma.c
+
+For AIX:
+    gcc -maix64 -o pma pma.c
