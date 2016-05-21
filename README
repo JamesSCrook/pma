@@ -1,5 +1,7 @@
+Sat May 21 16:40:40 AEST 2016
 James S. Crook
-Mon May 16 10:05:32 AEST 2016
+
+For further information on pma and pmc: https://yosj.com.au/Staff/C_Programs/pma/pma.html
 
 For Linux and Cygwin
     gcc -o pma pma.c
