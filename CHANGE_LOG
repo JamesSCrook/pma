@@ -1,2 +1,13 @@
 =============================================================================================
-v0.0.1	- Initial FOSS version
+v0.0.1 - Initial FOSS versions
+
+pmc v0.0.2 - Tue Aug 30 22:07:27 AEST 2016
+ 1. Changed "COUNT,INTERVAL:" to "TIME_VALUES:" (as required by pma).
+
+pma.c v0.0.2 - Tue Aug 30 22:07:27 AEST 2016
+ 1. Setting TZ in a config file didn't work. Moved setenv to read_configfile and changed
+    the order that the various initialize_* functions are called in main.
+ 2. Reordered these same functions to be in the same order that they're called.
+ 3. Added 2 more CLOCKTICKSLEVELS (6 and 7) for a maximum number of 8. Also changed the
+    defaults - added noon.
+ 4. Removed a redundant if test in initialize_parameters.

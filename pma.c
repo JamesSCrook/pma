@@ -34,7 +34,7 @@ pma can transform any correctly formatted data (not just Linux/Unix performance
 data), irrespective of what kind. See the README file for more information.
 *******************************************************************************/
 
-#define PROGVERSIONSTR	"0.0.1"
+#define PROGVERSIONSTR	"0.0.2"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -173,7 +173,9 @@ typedef struct {
 #define CLOCKTICKSLEV3IDX	12
 #define CLOCKTICKSLEV4IDX	13
 #define CLOCKTICKSLEV5IDX	14
-#define NUMCLOCKTICKSLEVELS	6
+#define CLOCKTICKSLEV6IDX	15
+#define CLOCKTICKSLEV7IDX	16
+#define NUMCLOCKTICKSLEVELS	8
 Param paramtbl[] = {
     {FULLSCALEIDX,          "fullscale",             FLTPNT,  {.fltpnt   =100.0        }, {.string=""}},
     {TIMEZONEIDX,           "TZ",                    STRING,  {.string   =""           }, {.string=""}},
@@ -185,11 +187,13 @@ Param paramtbl[] = {
     {MULTIFILEHEADERFMTIDX, "multifileheaderformat", STRING,  {.string   ="\"%s|%.1f\""}, {.string=""}},
     {CLOCKTICKSFILENAMEIDX, "clockticksfilename",    STRING,  {.string   ="clockticks" }, {.string=""}},
     {CLOCKTICKSLEV0IDX,     "clockticks_level_0",    INTEGER, {.longint  =24*60*60     }, {.string=""}},
-    {CLOCKTICKSLEV1IDX,     "clockticks_level_1",    INTEGER, {.longint  = 1*60*60     }, {.string=""}},
-    {CLOCKTICKSLEV2IDX,     "clockticks_level_2",    INTEGER, {.longint  =   30*60     }, {.string=""}},
-    {CLOCKTICKSLEV3IDX,     "clockticks_level_3",    INTEGER, {.longint  =   15*60     }, {.string=""}},
-    {CLOCKTICKSLEV4IDX,     "clockticks_level_4",    INTEGER, {.longint  =    5*60     }, {.string=""}},
-    {CLOCKTICKSLEV5IDX,     "clockticks_level_5",    INTEGER, {.longint  =    0*60     }, {.string=""}},
+    {CLOCKTICKSLEV1IDX,     "clockticks_level_1",    INTEGER, {.longint  =12*60*60     }, {.string=""}},
+    {CLOCKTICKSLEV2IDX,     "clockticks_level_2",    INTEGER, {.longint  = 6*60*60     }, {.string=""}},
+    {CLOCKTICKSLEV3IDX,     "clockticks_level_3",    INTEGER, {.longint  =   60*60     }, {.string=""}},
+    {CLOCKTICKSLEV4IDX,     "clockticks_level_4",    INTEGER, {.longint  =   30*60     }, {.string=""}},
+    {CLOCKTICKSLEV5IDX,     "clockticks_level_5",    INTEGER, {.longint  =   15*60     }, {.string=""}},
+    {CLOCKTICKSLEV6IDX,     "clockticks_level_6",    INTEGER, {.longint  =    5*60     }, {.string=""}},
+    {CLOCKTICKSLEV7IDX,     "clockticks_level_7",    INTEGER, {.longint  =       0     }, {.string=""}},
 };
 #define NUMCONFIGPARAMS	(sizeof(paramtbl)/sizeof(Param))
 
@@ -306,6 +310,52 @@ void skip_to_stanza(char *stanza, char *inputline, int mandatoryflag) {
 
 
 /*******************************************************************************
+Set the paramtbl's values to the defaults. Note: these may be overwritten later
+by entries in the configuration file.
+*******************************************************************************/
+void initialize_parameters() {
+    Param	*paramptr;
+    int		paramidx;
+
+    for (paramidx=0; paramidx<(int)NUMCONFIGPARAMS; paramidx++) {
+	paramptr = paramtbl+paramidx;
+
+	/* Exit if the parameters are in the wrong order. (They MUST be!) */
+	if (paramptr->idx != paramidx) {
+	    fprintf(stderr,
+	    "SNARK_IP1!: parameter '%s': index is %d, but must be %d, aborting!",
+	    paramptr->paramname, paramptr->idx, paramidx);
+	    exit(1);
+	}
+
+	/* set the param value = defaultvalue for every param in paramtbl */
+	switch(paramptr->type) {
+	    case CHAR:
+		paramptr->value.character = paramptr->defaultvalue.character;
+		break;
+	    case INTEGER:
+		paramptr->value.longint   = paramptr->defaultvalue.longint;
+		break;
+	    case FLTPNT:
+		paramptr->value.fltpnt    = paramptr->defaultvalue.fltpnt;
+		break;
+	    case STRING:
+		paramptr->value.string =
+			    (char*)malloc(strlen(paramptr->defaultvalue.string)+1);
+		strcpy(paramptr->value.string, paramptr->defaultvalue.string);
+		break;
+	    default:
+		fprintf(stderr, "SNARK_IP2: illegal parameter type %d\n", paramptr->type);
+		exit(1);
+		break;
+	}
+    }
+    /* fullscale is used a lot, so use a global variable */
+    fullscale = paramtbl[FULLSCALEIDX].value.fltpnt;
+}
+
+
+/*******************************************************************************
 Skip to the time values stanza and extract the count and iterations values.
 *******************************************************************************/
 void initialize_time_values() {
@@ -326,194 +376,6 @@ void initialize_time_values() {
 							    inputlinectr, argtbl[0]);
 	    exit(1);
 	}
-    }
-}
-
-
-/*******************************************************************************
-Set the paramtbl's values to the default. Note: these may be overwritten later
-by entries in the configuration file.
-*******************************************************************************/
-void initialize_parameters() {
-    Param	*paramptr;
-    int		paramidx;
-
-    for (paramidx=0; paramidx<(int)NUMCONFIGPARAMS; paramidx++) {
-	paramptr = paramtbl+paramidx;
-
-	/* Exit if the parameters are in the wrong order. (They MUST be!) */
-	if (paramptr->idx != paramidx) {
-	    if (paramptr->idx != paramidx) {
-		fprintf(stderr,
-		"SNARK_IP1!: parameter '%s': index is %d, but must be %d, aborting!",
-		paramptr->paramname, paramptr->idx, paramidx);
-		exit(1);
-	    }
-	}
-
-	/* set the param value = defaultvalue for every param in paramtbl */
-	switch(paramptr->type) {
-	    case CHAR:
-		paramptr->value.character = paramptr->defaultvalue.character;
-		break;
-	    case INTEGER:
-		paramptr->value.longint   = paramptr->defaultvalue.longint;
-		break;
-	    case FLTPNT:
-		paramptr->value.fltpnt    = paramptr->defaultvalue.fltpnt;
-		break;
-	    case STRING:
-		paramptr->value.string =
-			    (char*)malloc(strlen(paramptr->defaultvalue.string));
-		strcpy(paramptr->value.string, paramptr->defaultvalue.string);
-		break;
-	    default:
-		fprintf(stderr, "SNARK_IP2: illegal parameter type %d\n", paramptr->type);
-		exit(1);
-		break;
-	}
-    }
-    /* fullscale is used a lot, so use a global variable */
-    fullscale = paramtbl[FULLSCALEIDX].value.fltpnt;
-}
-
-
-/*******************************************************************************
-Read and parse a configuration file, which may contain maximum scale values for
-metrics (e.g., cpu_us 100.0) and/or paramtbl vales (e.g., singlefiledelimiter '|').
-Anything after the comment character ('#') is ignored.
-*******************************************************************************/
-void read_configfile() {
-    char	inputline[MAXINPUTLINELEN], *argtbl[2];
-    char	metric_device_name[MAXMETDEVNAMELEN];
-    Class	*classptr;
-    Metric	*metricptr;
-    Device	*deviceptr;
-    Param	*paramptr;
-    int		numargs, classidx, metricidx, deviceidx, paramidx;
-    int		legalparamflag;
-    FILE	*configfileptr;
-
-    if ((configfileptr=fopen(configfilename, "r")) == NULL) {
-	err_exit("Could not open configuration file '%s', aborting!", configfilename);
-    }
-
-    while (fgets(inputline, MAXINPUTLINELEN, configfileptr)) {
-	if ((numargs=parse_input_line(inputline, argtbl, 2)) == 2) {
-	    legalparamflag = 0;
-
-	    /* if a metric or a metric_device line has a scale value, grab it */
-	    for (classidx=0; classidx<numclasses; classidx++) {	/* classes */
-		classptr = classtbl+classidx;
-
-		if (classptr->classtype == VECTORCLASS) { /* single-row vector class */
-		    for (metricidx=0; metricidx<classptr->nummetrics; metricidx++) {
-			metricptr=classptr->metrictbl+metricidx;
-			if (!strcmp(argtbl[0], metricptr->metricname)) {
-			    deviceptr=metricptr->devicetbl;
-			    deviceptr->scale = atof(argtbl[1]);
-			    legalparamflag = 1;
-			}
-		    }
-		} else {				/* multi-row array class */
-		    for (metricidx=0; metricidx<classptr->nummetrics; metricidx++) {
-			metricptr=classptr->metrictbl+metricidx;
-
-			if (!strcmp(argtbl[0], metricptr->metricname)) {
-			    for (deviceidx=0; deviceidx<metricptr->numdevices;
-									deviceidx++) {
-				deviceptr=metricptr->devicetbl+deviceidx;
-				deviceptr->scale = atof(argtbl[1]);
-			    }
-			    legalparamflag = 1;
-			} else {
-			    for (deviceidx=0; deviceidx<metricptr->numdevices;
-									deviceidx++) {
-				deviceptr=metricptr->devicetbl+deviceidx;
-				sprintf(metric_device_name, "%s%s%s",
-					metricptr->metricname,
-					paramtbl[METDEVSEPARATORIDX].value.string,
-					deviceptr->devicename);
-				if (!strcmp(argtbl[0], metric_device_name)) {
-				    deviceptr->scale = atof(argtbl[1]);
-				    legalparamflag = 1;
-				    break;
-				}
-			    }
-			}
-		    }
-		}
-	    }
-
-	    /* Overwrite any paramtbl value with value(s) set in the config file */
-	    for (paramidx=0; paramidx<(int)NUMCONFIGPARAMS; paramidx++) {
-		paramptr = paramtbl+paramidx;
-		if (!strcmp(argtbl[0], paramptr->paramname)) {
-		    switch(paramptr->type) {
-			case CHAR:    paramptr->value.character = *argtbl[1]; break;
-			case FLTPNT:  paramptr->value.fltpnt    = atof(argtbl[1]); break;
-			case INTEGER: paramptr->value.longint   = atoi(argtbl[1]); break;
-			case STRING:
-			    paramptr->value.string = (char*)malloc(strlen(argtbl[1]));
-			    strcpy(paramptr->value.string, argtbl[1]);
-			    break;
-			default:
-			    fprintf(stderr, "SNARK: read_configfile\n");
-			    exit(1);
-			    break;
-		    }
-
-		    legalparamflag = 1;
-		    break;
-		}
-	    }
-
-	    if (legalparamflag == 0) {
-		fprintf(stderr, "Ignoring unknown configuraton file parameter '%s'\n", argtbl[0]);
-	    }
-	} else if (numargs != 0) {
-	    fprintf(stderr, "Bad configuration file line starting '%s'\n", argtbl[0]);
-	}
-    }
-    fclose(configfileptr);
-}
-
-
-/*******************************************************************************
-Read to the first DATA stanza, extract the UTC time, and store that in the
-global variable firsttimestamp. If the TZ parameter has been set in the config
-file, (attempt to) set the environment variable TZ to that value.
-*******************************************************************************/
-void initialize_timestamp() {
-    char	inputline[MAXINPUTLINELEN], *argtbl[NUMDATEARGS];
-    int		numargs;
-    int		firsttimesetctr = 0;
-
-    skip_to_stanza(DATESTR, inputline, 1);
-
-    while (fgets(inputline, MAXINPUTLINELEN, inputfileptr)) {
-	inputlinectr++;
-
-	if ((numargs=parse_input_line(inputline, argtbl, NUMDATEARGS)) == NUMDATEARGS) {
-	    firsttimestamp = atol(argtbl[TIMESTAMPIDX]);
-	    if (*paramtbl[TIMEZONEIDX].value.string != '\0') {
-		setenv("TZ", paramtbl[TIMEZONEIDX].value.string, 1);
-		tzset();
-	    }
-	    firsttimesetctr++;
-	} else if (numargs == 0) {
-	    break;
-	} else {
-	    fprintf(stderr, "initialize_timestamp: date error at line %d (%s)\n",
-							    inputlinectr, inputline);
-	}
-    }
-
-    if (firsttimesetctr != 1) {
-	fprintf(stderr,
-	    "firsttimestamp was set %d times at/near line %d; must be 1, aborting!\n",
-							firsttimesetctr, inputlinectr);
-	exit(1);
     }
 }
 
@@ -593,6 +455,41 @@ void initialize_metadata() {
 	}
     }
     numclasses = classidx;
+}
+
+
+/*******************************************************************************
+Read to the first DATA stanza, extract the UTC time, and store that in the
+global variable firsttimestamp. If the TZ parameter has been set in the config
+file, (attempt to) set the environment variable TZ to that value.
+*******************************************************************************/
+void initialize_timestamp() {
+    char	inputline[MAXINPUTLINELEN], *argtbl[NUMDATEARGS];
+    int		numargs;
+    int		firsttimesetctr = 0;
+
+    skip_to_stanza(DATESTR, inputline, 1);
+
+    while (fgets(inputline, MAXINPUTLINELEN, inputfileptr)) {
+	inputlinectr++;
+
+	if ((numargs=parse_input_line(inputline, argtbl, NUMDATEARGS)) == NUMDATEARGS) {
+	    firsttimestamp = atol(argtbl[TIMESTAMPIDX]);
+	    firsttimesetctr++;
+	} else if (numargs == 0) {
+	    break;
+	} else {
+	    fprintf(stderr, "initialize_timestamp: date error at line %d (%s)\n",
+							    inputlinectr, inputline);
+	}
+    }
+
+    if (firsttimesetctr != 1) {
+	fprintf(stderr,
+	    "firsttimestamp was set %d times at/near line %d; must be 1, aborting!\n",
+							firsttimesetctr, inputlinectr);
+	exit(1);
+    }
 }
 
 
@@ -737,6 +634,112 @@ void check_metric_names() {
 		}
 	    }
 	}
+    }
+}
+
+
+/*******************************************************************************
+Read and parse a configuration file, which may contain maximum scale values for
+metrics (e.g., cpu_us 100.0) and/or paramtbl vales (e.g., singlefiledelimiter '|').
+Anything after the comment character ('#') is ignored.
+*******************************************************************************/
+void read_configfile() {
+    char	inputline[MAXINPUTLINELEN], *argtbl[2];
+    char	metric_device_name[MAXMETDEVNAMELEN];
+    Class	*classptr;
+    Metric	*metricptr;
+    Device	*deviceptr;
+    Param	*paramptr;
+    int		numargs, classidx, metricidx, deviceidx, paramidx;
+    int		legalparamflag;
+    FILE	*configfileptr;
+
+    if ((configfileptr=fopen(configfilename, "r")) == NULL) {
+	err_exit("Could not open configuration file '%s', aborting!", configfilename);
+    }
+
+    while (fgets(inputline, MAXINPUTLINELEN, configfileptr)) {
+	if ((numargs=parse_input_line(inputline, argtbl, 2)) == 2) {
+	    legalparamflag = 0;
+
+	    /* if a metric or a metric_device line has a scale value, grab it */
+	    for (classidx=0; classidx<numclasses; classidx++) {	/* classes */
+		classptr = classtbl+classidx;
+
+		if (classptr->classtype == VECTORCLASS) { /* single-row vector class */
+		    for (metricidx=0; metricidx<classptr->nummetrics; metricidx++) {
+			metricptr=classptr->metrictbl+metricidx;
+			if (!strcmp(argtbl[0], metricptr->metricname)) {
+			    deviceptr=metricptr->devicetbl;
+			    deviceptr->scale = atof(argtbl[1]);
+			    legalparamflag = 1;
+			}
+		    }
+		} else {				/* multi-row array class */
+		    for (metricidx=0; metricidx<classptr->nummetrics; metricidx++) {
+			metricptr=classptr->metrictbl+metricidx;
+
+			if (!strcmp(argtbl[0], metricptr->metricname)) {
+			    for (deviceidx=0; deviceidx<metricptr->numdevices;
+									deviceidx++) {
+				deviceptr=metricptr->devicetbl+deviceidx;
+				deviceptr->scale = atof(argtbl[1]);
+			    }
+			    legalparamflag = 1;
+			} else {
+			    for (deviceidx=0; deviceidx<metricptr->numdevices;
+									deviceidx++) {
+				deviceptr=metricptr->devicetbl+deviceidx;
+				sprintf(metric_device_name, "%s%s%s",
+					metricptr->metricname,
+					paramtbl[METDEVSEPARATORIDX].value.string,
+					deviceptr->devicename);
+				if (!strcmp(argtbl[0], metric_device_name)) {
+				    deviceptr->scale = atof(argtbl[1]);
+				    legalparamflag = 1;
+				    break;
+				}
+			    }
+			}
+		    }
+		}
+	    }
+
+	    /* Overwrite any paramtbl value with value(s) set in the config file */
+	    for (paramidx=0; paramidx<(int)NUMCONFIGPARAMS; paramidx++) {
+		paramptr = paramtbl+paramidx;
+		if (!strcmp(argtbl[0], paramptr->paramname)) {
+		    switch(paramptr->type) {
+			case CHAR:    paramptr->value.character = *argtbl[1]; break;
+			case FLTPNT:  paramptr->value.fltpnt    = atof(argtbl[1]); break;
+			case INTEGER: paramptr->value.longint   = atoi(argtbl[1]); break;
+			case STRING:
+			    paramptr->value.string = (char*)malloc(strlen(argtbl[1]));
+			    strcpy(paramptr->value.string, argtbl[1]);
+			    break;
+			default:
+			    fprintf(stderr, "SNARK: read_configfile\n");
+			    exit(1);
+			    break;
+		    }
+
+		    legalparamflag = 1;
+		    break;
+		}
+	    }
+
+	    if (legalparamflag == 0) {
+		fprintf(stderr, "Ignoring unknown configuraton file parameter '%s'\n", argtbl[0]);
+	    }
+	} else if (numargs != 0) {
+	    fprintf(stderr, "Bad configuration file line starting '%s'\n", argtbl[0]);
+	}
+    }
+    fclose(configfileptr);
+
+    if (*paramtbl[TIMEZONEIDX].value.string != '\0') {
+	setenv("TZ", paramtbl[TIMEZONEIDX].value.string, 1);
+	tzset();
     }
 }
 
@@ -1092,7 +1095,7 @@ void populate_clockticks(time_t lasttimestamp) {
     int		levelctr = 0;
     time_t	minclocktick = 10*365*24*60*60;	/* insanely unusably large value */
 
-    for (paramidx=CLOCKTICKSLEV0IDX; paramidx<=CLOCKTICKSLEV5IDX; paramidx++) {
+    for (paramidx=CLOCKTICKSLEV0IDX; paramidx<=CLOCKTICKSLEV7IDX; paramidx++) {
 	paramptr = paramtbl+paramidx;
 	if (paramptr->value.longint > 0) {
 	    clockticktbl[levelctr] = paramptr->value.longint;
@@ -1111,7 +1114,7 @@ void populate_clockticks(time_t lasttimestamp) {
 	}
     }
     if (levelctr == 0) {
-	fprintf(stderr, "No valid clocktick levels specified!\n");
+	fprintf(stderr, "No valid clockticks levels specified!\n");
     }
 
     sprintf(formatstr, "%s\n", paramtbl[MULTIFILEHEADERFMTIDX].value.string);
@@ -1131,7 +1134,7 @@ void populate_clockticks(time_t lasttimestamp) {
 		strftime(formatstr, MAXTMSTPSTRLEN,
 			paramtbl[MULTIFILEDATEFMTIDX].value.string, timestampstructptr);
 		fprintf(clockticksfileptr, "%s 0\n",  formatstr);
-		fprintf(clockticksfileptr, "%s %d\n", formatstr, -12+2*levelidx);
+		fprintf(clockticksfileptr, "%s %d\n", formatstr, 2*(levelidx-levelctr));
 		break;
 	    }
 	}
@@ -1371,10 +1374,10 @@ int main(int argc, char *argv[]) {
 	    initialize_metadata();
 	    initialize_timestamp();
 	    initialize_classes();	/* rewinds non-stdin files */
-	    check_metric_names();
 	    if (configfilename != NULL) {
-		read_configfile();
+		read_configfile();	/* optionally sets TZ  */
 	    }
+	    check_metric_names();
 	    singlefileptr = prepare_single_output_file(singlefilename);
 	    prepare_multi_output_files(multifiledirname);
 	    firstfileflag = 0;

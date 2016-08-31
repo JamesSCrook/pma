@@ -31,7 +31,7 @@
 ################################################################################
 
 PROG=$(basename $0)
-VERSION=0.0.1
+VERSION=0.0.2
 export LC_TIME=POSIX
 
 FIRSTHOUR=0; LASTHOUR=23; COUNT=12; INTERVAL=10; EXCLUDEDAYS="None";
@@ -184,7 +184,7 @@ while true; do
 
 	    OUTFILE=$(eval echo $OUTFILEPATTERN)
 	    if [ "$PREVOUTFILE" != "$OUTFILE" ]; then
-		echo "COUNT,INTERVAL:" >> $OUTFILE
+		echo "TIME_VALUES:" >> $OUTFILE
 		echo "$COUNT $INTERVAL # h=$(hostname) f=$FIRSTHOUR l=$LASTHOUR x='$EXCLUDEDAYS' d='$DISKS'" >> $OUTFILE
 		echo >> $OUTFILE
 
