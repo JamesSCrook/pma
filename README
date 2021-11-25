@@ -1,7 +1,7 @@
 Wed Aug 31 20:57:58 AEST 2016
 James S. Crook
 
-For further information on pma and pmc: https://yosj.com.au/staff/c_programs/pma/pma.php
+For further information on pma and pmc: https://yosj.com.au/staff/c_programs/pma
 
 For Linux and Cygwin
     gcc -o pma pma.c
