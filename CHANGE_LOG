@@ -11,3 +11,8 @@ pma.c v0.0.2 - Tue Aug 30 22:07:27 AEST 2016
  3. Added 2 more CLOCKTICKSLEVELS (6 and 7) for a maximum number of 8. Also changed the
     defaults - added noon.
  4. Removed a redundant if test in initialize_parameters.
+
+v0.0.3 - Thu 25 Nov 2021 12:17:21 AEDT
+    Some versions of iostat (eg, SLES's) don't have a colon (':') after Device.
+    Changed '/^Device:/d' to '/^Device/d' in IOSEDPROG
+    (This works for both with and without the colon.)

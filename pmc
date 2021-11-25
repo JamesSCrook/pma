@@ -5,7 +5,7 @@
 #   pmc: Performance Monitor Collector
 #   Collect Linux/UNIX performance data into a log file for later analysis
 #   with pma (Performance Monitor Analyzer)
-#   Copyright (C) 2016 James S. Crook
+#   Copyright (C) 2016-2021 James S. Crook
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 ################################################################################
 
 PROG=$(basename $0)
-VERSION=0.0.2
+VERSION=0.0.3
 export LC_TIME=POSIX
 
 FIRSTHOUR=0; LASTHOUR=23; COUNT=12; INTERVAL=10; EXCLUDEDAYS="None";
@@ -85,7 +85,7 @@ function config_Linux {
     '
     IOSEDPROG='
 	/^Linux/d
-	/^Device:/d
+	/^Device/d
 	/^avg-cpu/d
 	/^ /d
 	/^$/d
