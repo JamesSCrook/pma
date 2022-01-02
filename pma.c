@@ -4,7 +4,7 @@
     pma: reads input text files and transforms them into a format that is
     suitable for analysis - particularly graphical analysis.
     
-    Copyright (C) 2016 James S. Crook
+    Copyright (C) 2016-2022 James S. Crook
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -1,5 +1,7 @@
-=============================================================================================
-v0.0.1 - Initial FOSS versions
+v0.0.3 - Thu 25 Nov 2021 12:17:21 AEDT
+    Some versions of iostat (eg, SLES's) don't have a colon (':') after Device.
+    Changed '/^Device:/d' to '/^Device/d' in IOSEDPROG
+    (This works for both with and without the colon.)
 
 pmc v0.0.2 - Tue Aug 30 22:07:27 AEST 2016
  1. Changed "COUNT,INTERVAL:" to "TIME_VALUES:" (as required by pma).
@@ -12,7 +14,4 @@ pma.c v0.0.2 - Tue Aug 30 22:07:27 AEST 2016
     defaults - added noon.
  4. Removed a redundant if test in initialize_parameters.
 
-v0.0.3 - Thu 25 Nov 2021 12:17:21 AEDT
-    Some versions of iostat (eg, SLES's) don't have a colon (':') after Device.
-    Changed '/^Device:/d' to '/^Device/d' in IOSEDPROG
-    (This works for both with and without the colon.)
+v0.0.1 - Initial FOSS versions
